@@ -24,7 +24,7 @@ NC='\033[0m'
 
 PROJECT_ID="$(gcloud config get-value project)"
 
-REGION="$region"
+REGION="asia-east1"
 
 RAND=$(openssl rand -hex 3)
 
