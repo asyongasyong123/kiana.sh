@@ -1,1 +1,1 @@
-# jurelyndeployer.sh
+# kiana.sh
