@@ -24,8 +24,6 @@ NC='\033[0m'
 
 PROJECT_ID="$(gcloud config get-value project)"
 
-REGION="us-central1"
-
 RAND=$(openssl rand -hex 3)
 
 CLOUD_RUN_SERVICE_NAME="KIANA-$RAND"
