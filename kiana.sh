@@ -20,7 +20,7 @@ NC='\033[0m'
 PROJECT_ID="$(gcloud config get-value project 2>/dev/null)"
 REGION="${1:-us-central1}"
 RAND=$(openssl rand -hex 3)
-CLOUD_RUN_SERVICE_NAME="KIANA-$RAND"
+CLOUD_RUN_SERVICE_NAME="parekoy-$RAND"
 DOMAIN="www.google.com"
 BUILD_DIR=$(mktemp -d)
 
