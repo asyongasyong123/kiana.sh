@@ -3,7 +3,7 @@
 set +e
 
 # =========================================
-# SHELL DEPLOYER BY JURELYN PANARES
+# SHELL DEPLOYER BY KIANA
 # =========================================
 
 # =========================
@@ -28,7 +28,7 @@ REGION="us-central1"
 
 RAND=$(openssl rand -hex 3)
 
-CLOUD_RUN_SERVICE_NAME="jurelyn-$RAND"
+CLOUD_RUN_SERVICE_NAME="KIANA-$RAND"
 
 DOMAIN="www.google.com"
 
@@ -52,7 +52,7 @@ clear
 
 echo ""
 echo -e "${CYAN}=========================================${NC}"
-echo -e "${GREEN}       SHELL DEPLOYER BY JURELYN PANARES${NC}"
+echo -e "${GREEN}       SHELL DEPLOYER BY KIANA${NC}"
 echo -e "${CYAN}=========================================${NC}"
 echo ""
 
@@ -424,7 +424,7 @@ cat > config.json <<EOF
       "settings": {
         "clients": [
           {
-            "password": "jurelyn"
+            "password": "kiana"
           }
         ]
       },
@@ -438,7 +438,7 @@ cat > config.json <<EOF
         "network": "ws",
 
         "wsSettings": {
-          "path": "/jurelyn-trojan?ed=2180"
+          "path": "/tr-ws?ed=2180"
         }
       }
     },
@@ -455,11 +455,11 @@ cat > config.json <<EOF
       "settings": {
         "clients": [
           {
-            "id": "jurelynpanares",
+            "id": "kiana",
 
             "level": 0,
 
-            "email": "vless-jurelyn"
+            "email": "vless-kiana"
           }
         ],
 
@@ -475,7 +475,7 @@ cat > config.json <<EOF
         "network": "ws",
 
         "wsSettings": {
-          "path": "/jurelyn-vless?ed=2180"
+          "path": "/vl-ws?ed=2180"
         }
       }
     },
@@ -492,7 +492,7 @@ cat > config.json <<EOF
       "settings": {
         "method": "chacha20-ietf-poly1305",
 
-        "password": "jurelyn",
+        "password": "kiana",
 
         "network": "tcp,udp"
       },
@@ -506,7 +506,7 @@ cat > config.json <<EOF
         "network": "httpupgrade",
 
         "httpupgradeSettings": {
-          "path": "/jurelyn-httpupgrade?ed=2180"
+          "path": "/ss-hu?ed=2180"
         }
       }
     }
@@ -635,7 +635,7 @@ http {
             proxy_set_header Origin https://www.cloudflare.com/;
         }
 
-        location /jurelyn-trojan {
+        location /tr-ws {
 
             proxy_pass http://127.0.0.1:10001;
 
@@ -650,7 +650,7 @@ http {
             proxy_read_timeout 86400;
         }
 
-        location /jurelyn-vless {
+        location /vl-ws {
 
             proxy_pass http://127.0.0.1:10002;
 
@@ -671,7 +671,7 @@ http {
             proxy_read_timeout 86400;
         }
 
-        location /jurelyn-httpupgrade {
+        location /ss-hu {
 
             proxy_pass http://127.0.0.1:11004;
 
@@ -835,11 +835,11 @@ echo -e "${CYAN}=========================================${NC}"
 echo ""
 
 echo -e "${GREEN}PASSWORD:${NC}"
-echo "jurelyn"
+echo "kiana"
 echo ""
 
 echo -e "${GREEN}PATH:${NC}"
-echo "/jurelyn-trojan"
+echo "/tr-ws"
 echo ""
 
 echo -e "${CYAN}=========================================${NC}"
@@ -848,11 +848,11 @@ echo -e "${CYAN}=========================================${NC}"
 echo ""
 
 echo -e "${GREEN}UUID:${NC}"
-echo "jurelynpanares"
+echo "kiana"
 echo ""
 
 echo -e "${GREEN}PATH:${NC}"
-echo "/jurelyn-vless"
+echo "/vl-ws"
 echo ""
 
 echo -e "${CYAN}=========================================${NC}"
@@ -861,7 +861,7 @@ echo -e "${CYAN}=========================================${NC}"
 echo ""
 
 echo -e "${GREEN}PASSWORD:${NC}"
-echo "jurelyn"
+echo "kiana"
 echo ""
 
 echo -e "${GREEN}METHOD:${NC}"
@@ -869,7 +869,7 @@ echo "chacha20-ietf-poly1305"
 echo ""
 
 echo -e "${GREEN}PATH:${NC}"
-echo "/jurelyn-httpupgrade"
+echo "/ss-hu"
 echo ""
 
 echo -e "${CYAN}=========================================${NC}"
