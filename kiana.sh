@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # =========================================
-# SHELL DEPLOYER BY KIANA - FULL OPTIMIZED
+# SHELL DEPLOYER BY KIANA - FINAL WORKING
 # =========================================
 
 # =========================
@@ -20,7 +20,7 @@ NC='\033[0m'
 PROJECT_ID="$(gcloud config get-value project 2>/dev/null)"
 REGION="${1:-us-central1}"
 RAND=$(openssl rand -hex 3)
-CLOUD_RUN_SERVICE_NAME="parekoy-$RAND"
+CLOUD_RUN_SERVICE_NAME="kiana-$RAND"
 DOMAIN="www.google.com"
 BUILD_DIR=$(mktemp -d)
 
@@ -39,7 +39,7 @@ clear
 echo ""
 echo -e "${CYAN}=========================================${NC}"
 echo -e "${GREEN}       SHELL DEPLOYER BY KIANA${NC}"
-echo -e "${GREEN}     FULL OPTIMIZED VERSION${NC}"
+echo -e "${GREEN}     FINAL WORKING VERSION${NC}"
 echo -e "${CYAN}=========================================${NC}"
 echo ""
 
@@ -142,7 +142,7 @@ mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR" || exit 1
 
 # =========================
-# FULL OPTIMIZED XRAY CONFIG
+# XRAY CONFIG - FULL OPTIMIZED
 # =========================
 cat > config.json <<'EOF'
 {
@@ -177,7 +177,7 @@ cat > config.json <<'EOF'
       "port": 10002,
       "listen": "127.0.0.1",
       "protocol": "vless",
-      "settings": { "clients": [{"id": "kiana", "level": 0}], "decryption": "none" },
+      "settings": { "clients": [{"id": "a1b2c3d4-5678-40ef-98ab-cdef01234567", "level": 0}], "decryption": "none" },
       "sniffing": { "enabled": true, "destOverride": ["http","tls","quic"], "routeOnly": true },
       "streamSettings": {
         "network": "ws",
@@ -210,7 +210,7 @@ cat > config.json <<'EOF'
 EOF
 
 # =========================
-# FULL OPTIMIZED NGINX CONFIG
+# NGINX CONFIG - FULL OPTIMIZED
 # =========================
 cat > nginx.conf <<'EOF'
 worker_processes auto;
@@ -300,15 +300,18 @@ http {
 EOF
 
 # =========================
-# OPTIMIZED ENTRYPOINT
+# ENTRYPOINT - SIMPLE & STABLE
 # =========================
 cat > entrypoint.sh <<'EOF'
 #!/bin/sh
-exec /usr/bin/s6-svscan /etc/s6-overlay/s6-rc.d
+/usr/local/bin/xray run -c /etc/xray.json &
+sleep 2
+exec /usr/local/openresty/bin/openresty -g 'daemon off;'
 EOF
+chmod +x entrypoint.sh
 
 # =========================
-# OPTIMIZED DOCKERFILE
+# DOCKERFILE - FIXED IMAGE
 # =========================
 cat > Dockerfile <<'EOF'
 FROM alpine:3.20 AS builder
@@ -317,18 +320,21 @@ RUN curl -L https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linu
  && unzip xray.zip xray geosite.dat geoip.dat \
  && chmod +x xray
 
-FROM openresty/openresty:1.27.1-0-alpine-fat
-RUN apk add --no-cache ca-certificates tzdata s6-overlay
+FROM openresty/openresty:alpine-fat
+RUN apk add --no-cache ca-certificates tzdata bash
+
 COPY --from=builder /xray /usr/local/bin/xray
 COPY --from=builder /geosite.dat /usr/local/share/xray/
 COPY --from=builder /geoip.dat /usr/local/share/xray/
 COPY config.json /etc/xray.json
 COPY nginx.conf /usr/local/openresty/nginx/conf/nginx.conf
-RUN echo -e '#!/bin/execlineb -P\nxray run -c /etc/xray.json' > /etc/s6-overlay/s6-rc.d/xray/run \
- && echo -e '#!/bin/execlineb -P\nopenresty -g "daemon off;"' > /etc/s6-overlay/s6-rc.d/nginx/run \
- && chmod +x /etc/s6-overlay/s6-rc.d/xray/run /etc/s6-overlay/s6-rc.d/nginx/run
+COPY entrypoint.sh /entrypoint.sh
+
+RUN chmod +x /usr/local/bin/xray
+RUN chmod +x /entrypoint.sh
+
 EXPOSE 8080
-ENTRYPOINT ["/init"]
+ENTRYPOINT ["/entrypoint.sh"]
 EOF
 
 # =========================
@@ -359,10 +365,17 @@ CLOUD_RUN_URL=$(gcloud run services describe $CLOUD_RUN_SERVICE_NAME --region=$R
 echo -e "\n${CYAN}=========================================${NC}"
 echo -e "${GREEN}✅ DEPLOYMENT SUCCESSFUL${NC}"
 echo -e "${CYAN}=========================================${NC}"
-echo -e "${GREEN}SERVICE:${NC} $CLOUD_RUN_SERVICE_NAME"
-echo -e "${GREEN}URL:${NC} $CLOUD_RUN_URL"
-echo -e "\n${YELLOW}--- CONFIG DETAILS ---${NC}"
-echo -e "${GREEN}TROJAN WS:${NC} Path=/tr-ws | Pass=kiana"
-echo -e "${GREEN}VLESS WS:${NC} Path=/vl-ws | ID=kiana"
-echo -e "${GREEN}SHADOWSOCKS:${NC} Path=/ss-hu | Pass=kiana | Method=chacha20-ietf-poly1305"
+echo -e "${GREEN}SERVICE NAME:${NC} $CLOUD_RUN_SERVICE_NAME"
+echo -e "${GREEN}CLOUD RUN URL:${NC} $CLOUD_RUN_URL"
+echo -e "\n${YELLOW}--- CONFIGURATION ---${NC}"
+echo -e "${GREEN}🔹 TROJAN WS${NC}"
+echo "   Password: kiana"
+echo "   Path: /tr-ws"
+echo -e "${GREEN}🔹 VLESS WS${NC}"
+echo "   UUID: a1b2c3d4-5678-40ef-98ab-cdef01234567"
+echo "   Path: /vl-ws"
+echo -e "${GREEN}🔹 SHADOWSOCKS HTTPUPGRADE${NC}"
+echo "   Password: kiana"
+echo "   Method: chacha20-ietf-poly1305"
+echo "   Path: /ss-hu"
 echo -e "${CYAN}=========================================${NC}"
