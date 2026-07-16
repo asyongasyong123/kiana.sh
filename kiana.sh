@@ -1,918 +1,368 @@
 #!/bin/bash
-
-set +e
+set -euo pipefail
 
 # =========================================
-# SHELL DEPLOYER BY KIANA
+# SHELL DEPLOYER BY KIANA - FULL OPTIMIZED
 # =========================================
 
 # =========================
 # COLORS
 # =========================
-
 GREEN='\033[1;32m'
 RED='\033[1;31m'
 YELLOW='\033[1;33m'
-BLUE='\033[1;34m'
 CYAN='\033[1;36m'
-WHITE='\033[1;37m'
 NC='\033[0m'
 
 # =========================
 # VARIABLES
 # =========================
-
-PROJECT_ID="$(gcloud config get-value project)"
-
-REGION="us-central1"
-
+PROJECT_ID="$(gcloud config get-value project 2>/dev/null)"
+REGION="${1:-us-central1}"
 RAND=$(openssl rand -hex 3)
-
 CLOUD_RUN_SERVICE_NAME="KIANA-$RAND"
-
 DOMAIN="www.google.com"
-
 BUILD_DIR=$(mktemp -d)
 
 # =========================
 # CLEANUP
 # =========================
-
 cleanup() {
     rm -rf "$BUILD_DIR"
 }
-
 trap cleanup EXIT
 
 # =========================
 # HEADER
 # =========================
-
 clear
-
 echo ""
 echo -e "${CYAN}=========================================${NC}"
 echo -e "${GREEN}       SHELL DEPLOYER BY KIANA${NC}"
+echo -e "${GREEN}     FULL OPTIMIZED VERSION${NC}"
 echo -e "${CYAN}=========================================${NC}"
 echo ""
 
 # =========================
 # CHECK PROJECT
 # =========================
-
 if [ -z "$PROJECT_ID" ]; then
-
-    echo ""
     echo -e "${RED}ERROR: No Google Cloud project set.${NC}"
-    echo ""
-    echo "Run:"
-    echo "gcloud config set project YOUR_PROJECT_ID"
-    echo ""
-
+    echo -e "Run: gcloud config set project YOUR_PROJECT_ID"
     exit 1
 fi
 
 # =========================
-# ENABLE REQUIRED APIS
+# ENABLE APIS
 # =========================
-
-echo ""
 echo -e "${CYAN}=========================================${NC}"
 echo -e "${GREEN}        ENABLING REQUIRED APIS${NC}"
 echo -e "${CYAN}=========================================${NC}"
-echo ""
-
-gcloud services enable \
-run.googleapis.com \
-cloudbuild.googleapis.com \
-artifactregistry.googleapis.com
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com --quiet
 
 # =========================
-# BILLING SETTINGS
+# BILLING SELECT
 # =========================
-
-echo ""
 echo -e "${CYAN}=========================================${NC}"
-echo -e "${GREEN}          BILLING SETTINGS${NC}"
+echo -e "${GREEN}          BILLING MODE${NC}"
 echo -e "${CYAN}=========================================${NC}"
-echo ""
-
-echo -e "${WHITE}1) REQUEST-BASED${NC}"
-echo "   ( CHARGED ONLY WHEN PROCESSING REQUESTS )"
-echo "   ( CPU IS LIMITED OUTSIDE OF REQUESTS )"
-echo ""
-
-echo -e "${WHITE}2) INSTANCE-BASED${NC}"
-echo "   ( CHARGED FOR THE ENTIRE LIFECYCLE OF INSTANCES )"
-echo "   ( FULL CPU FOR THE ENTIRE LIFETIME OF EACH INSTANCE )"
-echo ""
-
+echo -e "1) REQUEST-BASED  |  2) INSTANCE-BASED"
 while true; do
-
-    read -p "Select Billing Type [1-2]: " BILLING_CHOICE
-
+    read -p "Select [1-2]: " BILLING_CHOICE
     case $BILLING_CHOICE in
-
-        1)
-            BILLING_MODE="request"
-            break
-        ;;
-
-        2)
-            BILLING_MODE="instance"
-            break
-        ;;
-
-        *)
-            echo ""
-            echo -e "${RED}PLEASE PUT RIGHT VALUE${NC}"
-            echo ""
-        ;;
-
+        1) BILLING_MODE="request"; break ;;
+        2) BILLING_MODE="instance"; break ;;
+        *) echo -e "${RED}Invalid choice!${NC}" ;;
     esac
-
 done
 
 # =========================
-# RESOURCE SETTINGS
+# RESOURCE SELECT
 # =========================
-
-echo ""
 echo -e "${CYAN}=========================================${NC}"
-echo -e "${GREEN}      CLOUD RUN RESOURCE SETTINGS${NC}"
+echo -e "${GREEN}      RESOURCE SETTINGS${NC}"
 echo -e "${CYAN}=========================================${NC}"
-echo ""
-
-echo "MEMORY                vCPU"
-echo ""
-echo "1) 512Mi              1) 1vCPU"
-echo "2) 1Gi                2) 2vCPU"
-echo "3) 2Gi                3) 4vCPU"
-echo "4) 4Gi                4) 6vCPU"
-echo "5) 8Gi                5) 8vCPU"
-echo "6) 16Gi"
-echo "7) 32Gi"
-echo ""
-
-echo -e "${YELLOW}SUGGESTION:${NC}"
-echo "4GiB x 4vCPU / MIN & MAX INSTANCE 1-4"
-echo "( BETTER PERFORMANCE )"
-echo ""
+echo -e "${YELLOW}RECOMMENDED: 4Gi RAM + 4vCPU${NC}"
 
 while true; do
-
-    read -p "Select Memory [1-7]: " MEMORY_CHOICE
-
-    case $MEMORY_CHOICE in
-
-        1)
-            MEMORY="512Mi"
-            break
-        ;;
-
-        2)
-            MEMORY="1Gi"
-            break
-        ;;
-
-        3)
-            MEMORY="2Gi"
-            break
-        ;;
-
-        4)
-            MEMORY="4Gi"
-            break
-        ;;
-
-        5)
-            MEMORY="8Gi"
-            break
-        ;;
-
-        6)
-            MEMORY="16Gi"
-            break
-        ;;
-
-        7)
-            MEMORY="32Gi"
-            break
-        ;;
-
-        *)
-            echo ""
-            echo -e "${RED}PLEASE PUT RIGHT VALUE${NC}"
-            echo ""
-        ;;
-
+    read -p "Memory [1=512Mi|2=1Gi|3=2Gi|4=4Gi|5=8Gi|6=16Gi|7=32Gi]: " MEM
+    case $MEM in
+        1) MEMORY="512Mi"; break ;;
+        2) MEMORY="1Gi"; break ;;
+        3) MEMORY="2Gi"; break ;;
+        4) MEMORY="4Gi"; break ;;
+        5) MEMORY="8Gi"; break ;;
+        6) MEMORY="16Gi"; break ;;
+        7) MEMORY="32Gi"; break ;;
     esac
-
 done
 
 while true; do
-
-    read -p "Select vCPU [1-5]: " CPU_CHOICE
-
-    case $CPU_CHOICE in
-
-        1)
-            CPU="1"
-            break
-        ;;
-
-        2)
-            CPU="2"
-            break
-        ;;
-
-        3)
-            CPU="4"
-            break
-        ;;
-
-        4)
-            CPU="6"
-            break
-        ;;
-
-        5)
-            CPU="8"
-            break
-        ;;
-
-        *)
-            echo ""
-            echo -e "${RED}PLEASE PUT RIGHT VALUE${NC}"
-            echo ""
-        ;;
-
+    read -p "vCPU [1=1|2=2|3=4|4=6|5=8]: " CPU_SEL
+    case $CPU_SEL in
+        1) CPU="1"; break ;;
+        2) CPU="2"; break ;;
+        3) CPU="4"; break ;;
+        4) CPU="6"; break ;;
+        5) CPU="8"; break ;;
     esac
-
 done
-
-echo ""
-echo -e "${GREEN}Selected Billing:${NC}"
-echo "$BILLING_MODE"
-echo ""
-
-echo -e "${GREEN}Selected Memory:${NC}"
-echo "$MEMORY"
-echo ""
-
-echo -e "${GREEN}Selected vCPU:${NC}"
-echo "$CPU"
-echo ""
-
-# =========================
-# FIXED VALUES
-# =========================
 
 CONCURRENCY="1000"
-
 TIMEOUT="3600"
-
-echo -e "${GREEN}Concurrency:${NC}"
-echo "$CONCURRENCY"
-echo ""
-
-echo -e "${GREEN}Timeout:${NC}"
-echo "$TIMEOUT"
-echo ""
+SPECIAL_MODE=$([ "$MEMORY" = "4Gi" ] && [ "$CPU" = "4" ] && echo "true" || echo "false")
 
 # =========================
-# INSTANCE RULES
+# INSTANCE COUNT
 # =========================
-
-SPECIAL_MODE="false"
-
-if [ "$MEMORY" = "4Gi" ] && [ "$CPU" = "4" ]; then
-
-    SPECIAL_MODE="true"
-
-fi
-
-# =========================
-# MIN INSTANCES
-# =========================
-
-echo -e "${GREEN}Min Instances:${NC}"
-echo "Allowed values: 0 - 1"
-echo "Default: 0"
-echo ""
-
 while true; do
-
-    read -p "Enter Min Instances: " MIN_INST
-
+    read -p "Min Instances [0-1, default=0]: " MIN_INST
     MIN_INST=${MIN_INST:-0}
-
-    case $MIN_INST in
-
-        0|1)
-            break
-        ;;
-
-        *)
-            echo ""
-            echo -e "${RED}PLEASE PUT RIGHT VALUE${NC}"
-            echo ""
-        ;;
-
-    esac
-
+    [[ "$MIN_INST" =~ ^[0-1]$ ]] && break || echo -e "${RED}Only 0 or 1 allowed${NC}"
 done
 
-echo ""
-
-# =========================
-# MAX INSTANCES
-# =========================
-
 if [ "$SPECIAL_MODE" = "true" ]; then
-
-    echo -e "${GREEN}Max Instances:${NC}"
-    echo "SPECIAL MODE ENABLED"
-    echo "Allowed values: 1 - 4"
-    echo "Default: 1"
-    echo ""
-
     while true; do
-
-        read -p "Enter Max Instances: " MAX_INST
-
+        read -p "Max Instances [1-4, default=1]: " MAX_INST
         MAX_INST=${MAX_INST:-1}
-
-        case $MAX_INST in
-
-            1|2|3|4)
-                break
-            ;;
-
-            *)
-                echo ""
-                echo -e "${RED}PLEASE PUT RIGHT VALUE${NC}"
-                echo ""
-            ;;
-
-        esac
-
+        [[ "$MAX_INST" =~ ^[1-4]$ ]] && break || echo -e "${RED}Only 1-4 allowed${NC}"
     done
-
 else
-
-    echo -e "${GREEN}Max Instances:${NC}"
-    echo "Allowed values: 0 - 2"
-    echo "Default: 0"
-    echo ""
-
     while true; do
-
-        read -p "Enter Max Instances: " MAX_INST
-
+        read -p "Max Instances [0-2, default=0]: " MAX_INST
         MAX_INST=${MAX_INST:-0}
-
-        case $MAX_INST in
-
-            0|1|2)
-                break
-            ;;
-
-            *)
-                echo ""
-                echo -e "${RED}PLEASE PUT RIGHT VALUE${NC}"
-                echo ""
-            ;;
-
-        esac
-
+        [[ "$MAX_INST" =~ ^[0-2]$ ]] && break || echo -e "${RED}Only 0-2 allowed${NC}"
     done
-
 fi
 
-echo ""
-
 # =========================
-# CREATE DIRECTORY
+# PREPARE BUILD FILES
 # =========================
-
 mkdir -p "$BUILD_DIR"
-
 cd "$BUILD_DIR" || exit 1
 
 # =========================
-# CONFIG.JSON
+# FULL OPTIMIZED XRAY CONFIG
 # =========================
-
-cat > config.json <<EOF
+cat > config.json <<'EOF'
 {
-  "log": {
-    "loglevel": "warning"
+  "log": { "loglevel": "warning" },
+  "policy": {
+    "levels": {
+      "0": {
+        "handshake": 1,
+        "connIdle": 86400,
+        "uplinkOnly": 0,
+        "downlinkOnly": 0,
+        "bufferSize": 1048576
+      }
+    }
   },
-
   "inbounds": [
-
     {
       "tag": "trojan-ws",
-
       "port": 10001,
-
       "listen": "127.0.0.1",
-
       "protocol": "trojan",
-
-      "settings": {
-        "clients": [
-          {
-            "password": "kiana"
-          }
-        ]
-      },
-
-      "sniffing": {
-        "enabled": true,
-        "metadataOnly": false
-      },
-
+      "settings": { "clients": [{"password": "kiana", "level": 0}] },
+      "sniffing": { "enabled": true, "destOverride": ["http","tls","quic"], "routeOnly": true },
       "streamSettings": {
         "network": "ws",
-
-        "wsSettings": {
-          "path": "/tr-ws?ed=2180"
-        }
+        "wsSettings": { "path": "/tr-ws?ed=2560", "acceptForwardedFor": ["127.0.0.1"] },
+        "sockopt": { "tcpNoDelay": true, "tcpFastOpen": true, "tcpKeepAlive": true, "tcpKeepAliveIdle": 30, "tcpKeepAliveInterval": 15 }
       }
     },
-
     {
       "tag": "vless-ws",
-
       "port": 10002,
-
       "listen": "127.0.0.1",
-
       "protocol": "vless",
-
-      "settings": {
-        "clients": [
-          {
-            "id": "kiana",
-
-            "level": 0,
-
-            "email": "vless-kiana"
-          }
-        ],
-
-        "decryption": "none"
-      },
-
-      "sniffing": {
-        "enabled": true,
-        "metadataOnly": false
-      },
-
+      "settings": { "clients": [{"id": "kiana", "level": 0}], "decryption": "none" },
+      "sniffing": { "enabled": true, "destOverride": ["http","tls","quic"], "routeOnly": true },
       "streamSettings": {
         "network": "ws",
-
-        "wsSettings": {
-          "path": "/vl-ws?ed=2180"
-        }
+        "wsSettings": { "path": "/vl-ws?ed=2560", "acceptForwardedFor": ["127.0.0.1"] },
+        "sockopt": { "tcpNoDelay": true, "tcpFastOpen": true, "tcpKeepAlive": true, "tcpKeepAliveIdle": 30, "tcpKeepAliveInterval": 15 }
       }
     },
-
     {
       "tag": "ss-hu",
-
       "port": 11004,
-
       "listen": "127.0.0.1",
-
       "protocol": "shadowsocks",
-
-      "settings": {
-        "method": "chacha20-ietf-poly1305",
-
-        "password": "kiana",
-
-        "network": "tcp,udp"
-      },
-
-      "sniffing": {
-        "enabled": true,
-        "metadataOnly": false
-      },
-
+      "settings": { "method": "chacha20-ietf-poly1305", "password": "kiana", "network": "tcp,udp" },
+      "sniffing": { "enabled": true, "destOverride": ["http","tls","quic"], "routeOnly": true },
       "streamSettings": {
         "network": "httpupgrade",
-
-        "httpupgradeSettings": {
-          "path": "/ss-hu?ed=2180"
-        }
+        "httpupgradeSettings": { "path": "/ss-hu?ed=2560" },
+        "sockopt": { "tcpNoDelay": true, "tcpFastOpen": true, "tcpKeepAlive": true, "tcpKeepAliveIdle": 30, "tcpKeepAliveInterval": 15 }
       }
     }
-
   ],
-
   "outbounds": [
-
     {
       "protocol": "freedom",
-
-      "tag": "direct"
+      "tag": "direct",
+      "settings": { "domainStrategy": "UseIPv4v6", "tcpKeepAliveIdle": 30, "tcpKeepAliveInterval": 15 }
     }
-
   ]
 }
 EOF
 
 # =========================
-# NGINX.CONF
+# FULL OPTIMIZED NGINX CONFIG
 # =========================
-
-cat > nginx.conf <<EOF
+cat > nginx.conf <<'EOF'
 worker_processes auto;
-
-worker_rlimit_nofile 200000;
+worker_rlimit_nofile 65535;
+worker_priority -10;
 
 events {
-
     worker_connections 65535;
-
+    use epoll;
     multi_accept on;
+    accept_mutex off;
 }
 
 http {
+    include mime.types;
+    default_type application/octet-stream;
 
     sendfile on;
-
-    tcp_nopush on;
-
     tcp_nodelay on;
+    tcp_nopush on;
+    types_hash_max_size 2048;
 
-    keepalive_timeout 65;
-
-    keepalive_requests 100000;
+    keepalive_timeout 86400;
+    keepalive_requests 1000000;
 
     client_max_body_size 0;
-
-    proxy_connect_timeout 300;
-
-    proxy_send_timeout 86400;
-
-    proxy_read_timeout 86400;
+    client_body_buffer_size 16k;
 
     proxy_buffering off;
-
     proxy_request_buffering off;
+    proxy_cache off;
+    proxy_http_version 1.1;
+
+    proxy_connect_timeout 5s;
+    proxy_send_timeout 86400s;
+    proxy_read_timeout 86400s;
 
     server_tokens off;
-
     gzip on;
+    gzip_comp_level 3;
+    gzip_types text/plain application/json application/javascript;
 
-    gzip_comp_level 5;
-
-    gzip_types
-        text/plain
-        text/css
-        application/json
-        application/javascript;
-
-    map \$request_uri \$backend_host {
-
-        default $DOMAIN;
-    }
-
-    map \$http_upgrade \$connection_upgrade {
-
+    map $http_upgrade $connection_upgrade {
         default upgrade;
-
         '' close;
     }
 
     server {
-
-        listen 8080;
-
-        http2 on;
+        listen 8080 deferred reuseport;
+        server_name _;
 
         location / {
-
+            proxy_pass https://www.google.com;
+            proxy_set_header Host www.google.com;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
             proxy_ssl_server_name on;
-
             proxy_ssl_protocols TLSv1.2 TLSv1.3;
-
-            proxy_pass https://\$backend_host;
-
-            proxy_set_header Host \$backend_host;
-
-            proxy_set_header Referer https://www.google.com/;
-
-            proxy_set_header Origin https://www.cloudflare.com/;
-
-            proxy_set_header Connection "";
-
-            proxy_http_version 1.1;
-
-            proxy_set_header X-Real-IP \$remote_addr;
-
-            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-
-            proxy_set_header X-Forwarded-Proto \$scheme;
-        }
-
-        location /assets/ {
-
-            proxy_ssl_server_name on;
-
-            proxy_ssl_protocols TLSv1.2 TLSv1.3;
-
-            proxy_pass https://$DOMAIN;
-
-            proxy_set_header Host $DOMAIN;
-
-            proxy_set_header Referer https://www.google.com/;
-
-            proxy_set_header Origin https://www.cloudflare.com/;
         }
 
         location /tr-ws {
-
             proxy_pass http://127.0.0.1:10001;
-
-            proxy_http_version 1.1;
-
-            proxy_set_header Upgrade \$http_upgrade;
-
-            proxy_set_header Connection \$connection_upgrade;
-
-            proxy_set_header Host \$host;
-
-            proxy_read_timeout 86400;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
         }
 
         location /vl-ws {
-
             proxy_pass http://127.0.0.1:10002;
-
-            proxy_http_version 1.1;
-
-            proxy_set_header Upgrade \$http_upgrade;
-
-            proxy_set_header Connection \$connection_upgrade;
-
-            proxy_set_header Host \$host;
-
-            proxy_buffering off;
-
-            proxy_request_buffering off;
-
-            chunked_transfer_encoding off;
-
-            proxy_read_timeout 86400;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
         }
 
         location /ss-hu {
-
             proxy_pass http://127.0.0.1:11004;
-
-            proxy_http_version 1.1;
-
-            proxy_set_header Upgrade \$http_upgrade;
-
-            proxy_set_header Connection \$connection_upgrade;
-
-            proxy_set_header Host \$host;
-
-            proxy_read_timeout 86400;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
         }
     }
 }
 EOF
 
 # =========================
-# ENTRYPOINT.SH
+# OPTIMIZED ENTRYPOINT
 # =========================
-
-cat > entrypoint.sh <<EOF
+cat > entrypoint.sh <<'EOF'
 #!/bin/sh
-
-/usr/local/bin/xray run -c /etc/xray.json &
-
-sleep 3
-
-exec /usr/local/openresty/bin/openresty -g 'daemon off;'
+exec /usr/bin/s6-svscan /etc/s6-overlay/s6-rc.d
 EOF
 
-chmod +x entrypoint.sh
-
 # =========================
-# DOCKERFILE
+# OPTIMIZED DOCKERFILE
 # =========================
+cat > Dockerfile <<'EOF'
+FROM alpine:3.20 AS builder
+RUN apk add --no-cache curl unzip ca-certificates
+RUN curl -L https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip -o xray.zip \
+ && unzip xray.zip xray geosite.dat geoip.dat \
+ && chmod +x xray
 
-cat > Dockerfile <<EOF
-FROM alpine:3.19 AS xray-bin
-
-RUN apk add --no-cache \
-    curl \
-    unzip \
-    ca-certificates \
-    bash
-
-WORKDIR /app
-
-RUN curl -L https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip -o xray.zip \\
-    && unzip xray.zip \\
-    && chmod +x xray \\
-    && mv xray /usr/local/bin/xray \\
-    && rm -f xray.zip
-
-FROM openresty/openresty:alpine-fat
-
-RUN apk add --no-cache \
-    ca-certificates \
-    bash \
-    curl \
-    tzdata
-
-COPY --from=xray-bin /usr/local/bin/xray /usr/local/bin/xray
-
+FROM openresty/openresty:1.27.1-0-alpine-fat
+RUN apk add --no-cache ca-certificates tzdata s6-overlay
+COPY --from=builder /xray /usr/local/bin/xray
+COPY --from=builder /geosite.dat /usr/local/share/xray/
+COPY --from=builder /geoip.dat /usr/local/share/xray/
 COPY config.json /etc/xray.json
-
 COPY nginx.conf /usr/local/openresty/nginx/conf/nginx.conf
-
-COPY entrypoint.sh /entrypoint.sh
-
-RUN chmod +x /usr/local/bin/xray
-
-RUN chmod +x /entrypoint.sh
-
+RUN echo -e '#!/bin/execlineb -P\nxray run -c /etc/xray.json' > /etc/s6-overlay/s6-rc.d/xray/run \
+ && echo -e '#!/bin/execlineb -P\nopenresty -g "daemon off;"' > /etc/s6-overlay/s6-rc.d/nginx/run \
+ && chmod +x /etc/s6-overlay/s6-rc.d/xray/run /etc/s6-overlay/s6-rc.d/nginx/run
 EXPOSE 8080
-
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/init"]
 EOF
 
 # =========================
-# BUILD IMAGE
+# BUILD & DEPLOY
 # =========================
-
-echo ""
 echo -e "${CYAN}=========================================${NC}"
 echo -e "${GREEN}          BUILDING IMAGE${NC}"
 echo -e "${CYAN}=========================================${NC}"
-echo ""
+gcloud builds submit --tag gcr.io/$PROJECT_ID/$CLOUD_RUN_SERVICE_NAME . --quiet
 
-gcloud builds submit \
-  --tag gcr.io/$PROJECT_ID/$CLOUD_RUN_SERVICE_NAME \
-  . \
-  --quiet
+BILLING_FLAGS=$([ "$BILLING_MODE" = "instance" ] && echo "--no-cpu-throttling" || echo "--cpu-throttling")
 
-# =========================
-# DEPLOY CLOUD RUN
-# =========================
-
-if [ "$BILLING_MODE" = "instance" ]; then
-
-    BILLING_FLAGS="--no-cpu-throttling"
-
-else
-
-    BILLING_FLAGS="--cpu-throttling"
-
-fi
-
-echo ""
 echo -e "${CYAN}=========================================${NC}"
 echo -e "${GREEN}         DEPLOYING CLOUD RUN${NC}"
 echo -e "${CYAN}=========================================${NC}"
-echo ""
-
 gcloud run deploy $CLOUD_RUN_SERVICE_NAME \
   --image gcr.io/$PROJECT_ID/$CLOUD_RUN_SERVICE_NAME \
-  --platform managed \
-  --region $REGION \
-  --allow-unauthenticated \
-  --port 8080 \
-  --memory $MEMORY \
-  --cpu $CPU \
-  --concurrency $CONCURRENCY \
-  --timeout $TIMEOUT \
-  --min-instances $MIN_INST \
-  --max-instances $MAX_INST \
-  --execution-environment gen2 \
-  --cpu-boost \
-  $BILLING_FLAGS \
-  --quiet
+  --platform managed --region $REGION --allow-unauthenticated \
+  --port 8080 --memory $MEMORY --cpu $CPU --concurrency $CONCURRENCY \
+  --timeout $TIMEOUT --min-instances $MIN_INST --max-instances $MAX_INST \
+  --execution-environment gen2 --cpu-boost $BILLING_FLAGS --quiet
+
+CLOUD_RUN_URL=$(gcloud run services describe $CLOUD_RUN_SERVICE_NAME --region=$REGION --format='value(status.url)')
 
 # =========================
-# CLOUD RUN URL
+# FINAL OUTPUT
 # =========================
-
-CLOUD_RUN_URL=$(gcloud run services describe $CLOUD_RUN_SERVICE_NAME \
-  --region=$REGION \
-  --format='value(status.url)')
-
-# =========================
-# OUTPUT
-# =========================
-
-echo ""
+echo -e "\n${CYAN}=========================================${NC}"
+echo -e "${GREEN}✅ DEPLOYMENT SUCCESSFUL${NC}"
 echo -e "${CYAN}=========================================${NC}"
-echo -e "${GREEN}DEPLOYMENT COMPLETE${NC}"
-echo -e "${CYAN}=========================================${NC}"
-echo ""
-
-echo -e "${GREEN}CLOUD RUN SERVICE:${NC}"
-echo "$CLOUD_RUN_SERVICE_NAME"
-echo ""
-
-echo -e "${GREEN}DOMAIN:${NC}"
-echo "$DOMAIN"
-echo ""
-
-echo -e "${CYAN}=========================================${NC}"
-echo -e "${GREEN}TROJAN WS${NC}"
-echo -e "${CYAN}=========================================${NC}"
-echo ""
-
-echo -e "${GREEN}PASSWORD:${NC}"
-echo "kiana"
-echo ""
-
-echo -e "${GREEN}PATH:${NC}"
-echo "/tr-ws"
-echo ""
-
-echo -e "${CYAN}=========================================${NC}"
-echo -e "${GREEN}VLESS WS${NC}"
-echo -e "${CYAN}=========================================${NC}"
-echo ""
-
-echo -e "${GREEN}UUID:${NC}"
-echo "kiana"
-echo ""
-
-echo -e "${GREEN}PATH:${NC}"
-echo "/vl-ws"
-echo ""
-
-echo -e "${CYAN}=========================================${NC}"
-echo -e "${GREEN}SHADOWSOCKS HTTPUPGRADE${NC}"
-echo -e "${CYAN}=========================================${NC}"
-echo ""
-
-echo -e "${GREEN}PASSWORD:${NC}"
-echo "kiana"
-echo ""
-
-echo -e "${GREEN}METHOD:${NC}"
-echo "chacha20-ietf-poly1305"
-echo ""
-
-echo -e "${GREEN}PATH:${NC}"
-echo "/ss-hu"
-echo ""
-
-echo -e "${CYAN}=========================================${NC}"
-echo -e "${GREEN}CLOUD RUN SETTINGS${NC}"
-echo -e "${CYAN}=========================================${NC}"
-echo ""
-
-echo -e "${GREEN}BILLING:${NC}"
-echo "$BILLING_MODE"
-echo ""
-
-echo -e "${GREEN}MEMORY:${NC}"
-echo "$MEMORY"
-echo ""
-
-echo -e "${GREEN}CPU:${NC}"
-echo "$CPU"
-echo ""
-
-echo -e "${GREEN}CONCURRENCY:${NC}"
-echo "$CONCURRENCY"
-echo ""
-
-echo -e "${GREEN}TIMEOUT:${NC}"
-echo "$TIMEOUT"
-echo ""
-
-echo -e "${GREEN}MIN INSTANCES:${NC}"
-echo "$MIN_INST"
-echo ""
-
-echo -e "${GREEN}MAX INSTANCES:${NC}"
-echo "$MAX_INST"
-echo ""
-
-echo -e "${CYAN}=========================================${NC}"
-echo -e "${GREEN}CLOUD RUN URL${NC}"
-echo -e "${CYAN}=========================================${NC}"
-echo ""
-
-echo "$CLOUD_RUN_URL"
-echo ""
-
-echo -e "${CYAN}=========================================${NC}"
-echo -e "${GREEN}DONE${NC}"
+echo -e "${GREEN}SERVICE:${NC} $CLOUD_RUN_SERVICE_NAME"
+echo -e "${GREEN}URL:${NC} $CLOUD_RUN_URL"
+echo -e "\n${YELLOW}--- CONFIG DETAILS ---${NC}"
+echo -e "${GREEN}TROJAN WS:${NC} Path=/tr-ws | Pass=kiana"
+echo -e "${GREEN}VLESS WS:${NC} Path=/vl-ws | ID=kiana"
+echo -e "${GREEN}SHADOWSOCKS:${NC} Path=/ss-hu | Pass=kiana | Method=chacha20-ietf-poly1305"
 echo -e "${CYAN}=========================================${NC}"
