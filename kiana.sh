@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # =========================================
-# SHELL DEPLOYER BY KIANA - FINAL WORKING
+# SHELL DEPLOYER BY KIANA - SMART VERSION
 # =========================================
 
 # =========================
@@ -15,10 +15,17 @@ CYAN='\033[1;36m'
 NC='\033[0m'
 
 # =========================
-# VARIABLES
+# VARIABLES - SMART REGION DETECT
 # =========================
 PROJECT_ID="$(gcloud config get-value project 2>/dev/null)"
-REGION="${1:-us-central1}"
+
+# 🧠 SMART REGION: argument > gcloud default > existing service > us-central1
+REGION="${1:-$(
+  gcloud config get-value compute/region 2>/dev/null ||
+  gcloud run services list --format='value(region)' --limit 1 2>/dev/null ||
+  echo "us-central1"
+)}"
+
 RAND=$(openssl rand -hex 3)
 CLOUD_RUN_SERVICE_NAME="kiana-$RAND"
 DOMAIN="www.google.com"
@@ -39,8 +46,14 @@ clear
 echo ""
 echo -e "${CYAN}=========================================${NC}"
 echo -e "${GREEN}       SHELL DEPLOYER BY KIANA${NC}"
-echo -e "${GREEN}     FINAL WORKING VERSION${NC}"
+echo -e "${GREEN}     SMART AUTO REGION DETECT${NC}"
 echo -e "${CYAN}=========================================${NC}"
+echo ""
+
+# =========================
+# SHOW DETECTED REGION
+# =========================
+echo -e "${GREEN}✅ Detected Region:${NC} $REGION"
 echo ""
 
 # =========================
@@ -142,7 +155,7 @@ mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR" || exit 1
 
 # =========================
-# XRAY CONFIG - FULL OPTIMIZED
+# XRAY CONFIG - UPDATED
 # =========================
 cat > config.json <<'EOF'
 {
@@ -186,15 +199,28 @@ cat > config.json <<'EOF'
       }
     },
     {
-      "tag": "ss-hu",
-      "port": 11004,
+      "tag": "ss-ws",
+      "port": 10003,
       "listen": "127.0.0.1",
       "protocol": "shadowsocks",
       "settings": { "method": "chacha20-ietf-poly1305", "password": "kiana", "network": "tcp,udp" },
       "sniffing": { "enabled": true, "destOverride": ["http","tls","quic"], "routeOnly": true },
       "streamSettings": {
-        "network": "httpupgrade",
-        "httpupgradeSettings": { "path": "/ss-hu?ed=2560" },
+        "network": "ws",
+        "wsSettings": { "path": "/ss-ws?ed=2560", "acceptForwardedFor": ["127.0.0.1"] },
+        "sockopt": { "tcpNoDelay": true, "tcpFastOpen": true, "tcpKeepAlive": true, "tcpKeepAliveIdle": 30, "tcpKeepAliveInterval": 15 }
+      }
+    },
+    {
+      "tag": "vm-ws",
+      "port": 10004,
+      "listen": "127.0.0.1",
+      "protocol": "vmess",
+      "settings": { "clients": [{"id": "b2c3d4e5-6789-41af-99bc-def012345678", "alterId": 0, "level": 0}] },
+      "sniffing": { "enabled": true, "destOverride": ["http","tls","quic"], "routeOnly": true },
+      "streamSettings": {
+        "network": "ws",
+        "wsSettings": { "path": "/vm-ws?ed=2560", "acceptForwardedFor": ["127.0.0.1"] },
         "sockopt": { "tcpNoDelay": true, "tcpFastOpen": true, "tcpKeepAlive": true, "tcpKeepAliveIdle": 30, "tcpKeepAliveInterval": 15 }
       }
     }
@@ -210,7 +236,7 @@ cat > config.json <<'EOF'
 EOF
 
 # =========================
-# NGINX CONFIG - FULL OPTIMIZED
+# NGINX CONFIG
 # =========================
 cat > nginx.conf <<'EOF'
 worker_processes auto;
@@ -288,8 +314,16 @@ http {
             proxy_set_header X-Real-IP $remote_addr;
         }
 
-        location /ss-hu {
-            proxy_pass http://127.0.0.1:11004;
+        location /ss-ws {
+            proxy_pass http://127.0.0.1:10003;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+
+        location /vm-ws {
+            proxy_pass http://127.0.0.1:10004;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection $connection_upgrade;
             proxy_set_header Host $host;
@@ -300,7 +334,7 @@ http {
 EOF
 
 # =========================
-# ENTRYPOINT - SIMPLE & STABLE
+# ENTRYPOINT
 # =========================
 cat > entrypoint.sh <<'EOF'
 #!/bin/sh
@@ -311,7 +345,7 @@ EOF
 chmod +x entrypoint.sh
 
 # =========================
-# DOCKERFILE - FIXED IMAGE
+# DOCKERFILE
 # =========================
 cat > Dockerfile <<'EOF'
 FROM alpine:3.20 AS builder
@@ -366,6 +400,7 @@ echo -e "\n${CYAN}=========================================${NC}"
 echo -e "${GREEN}✅ DEPLOYMENT SUCCESSFUL${NC}"
 echo -e "${CYAN}=========================================${NC}"
 echo -e "${GREEN}SERVICE NAME:${NC} $CLOUD_RUN_SERVICE_NAME"
+echo -e "${GREEN}DEPLOYED REGION:${NC} $REGION"
 echo -e "${GREEN}CLOUD RUN URL:${NC} $CLOUD_RUN_URL"
 echo -e "\n${YELLOW}--- CONFIGURATION ---${NC}"
 echo -e "${GREEN}🔹 TROJAN WS${NC}"
@@ -374,8 +409,12 @@ echo "   Path: /tr-ws"
 echo -e "${GREEN}🔹 VLESS WS${NC}"
 echo "   UUID: a1b2c3d4-5678-40ef-98ab-cdef01234567"
 echo "   Path: /vl-ws"
-echo -e "${GREEN}🔹 SHADOWSOCKS HTTPUPGRADE${NC}"
+echo -e "${GREEN}🔹 SHADOWSOCKS WS${NC}"
 echo "   Password: kiana"
 echo "   Method: chacha20-ietf-poly1305"
-echo "   Path: /ss-hu"
+echo "   Path: /ss-ws"
+echo -e "${GREEN}🔹 VMESS WS${NC}"
+echo "   UUID: b2c3d4e5-6789-41af-99bc-def012345678"
+echo "   AlterId: 0"
+echo "   Path: /vm-ws"
 echo -e "${CYAN}=========================================${NC}"
