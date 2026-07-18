@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # =========================================
-# SHELL DEPLOYER BY KIANA - SMART VERSION
+# SHELL DEPLOYER BY KIANA - FINAL FIXED VERSION
 # =========================================
 
 # =========================
@@ -15,16 +15,29 @@ CYAN='\033[1;36m'
 NC='\033[0m'
 
 # =========================
-# VARIABLES - SMART REGION DETECT
+# VARIABLES - FIXED SMART REGION DETECT
 # =========================
 PROJECT_ID="$(gcloud config get-value project 2>/dev/null)"
 
-# 🧠 SMART REGION: argument > gcloud default > existing service > us-central1
+# 🧠 FIXED: Siguradong dili empty ang region
 REGION="${1:-$(
-  gcloud config get-value compute/region 2>/dev/null ||
-  gcloud run services list --format='value(region)' --limit 1 2>/dev/null ||
+  DEF_REG=$(gcloud config get-value compute/region 2>/dev/null || true)
+  if [ -n "$DEF_REG" ] && [ "$DEF_REG" != "(unset)" ]; then
+    echo "$DEF_REG"
+    return 0
+  fi
+
+  EXIST_REG=$(gcloud run services list --format='value(region)' --limit 1 2>/dev/null || true)
+  if [ -n "$EXIST_REG" ]; then
+    echo "$EXIST_REG"
+    return 0
+  fi
+
   echo "us-central1"
 )}"
+
+# ✅ Safety backup aron dili gyud mag-empty
+[ -z "$REGION" ] && REGION="us-central1"
 
 RAND=$(openssl rand -hex 3)
 CLOUD_RUN_SERVICE_NAME="kiana-$RAND"
@@ -46,14 +59,10 @@ clear
 echo ""
 echo -e "${CYAN}=========================================${NC}"
 echo -e "${GREEN}       SHELL DEPLOYER BY KIANA${NC}"
-echo -e "${GREEN}     SMART AUTO REGION DETECT${NC}"
+echo -e "${GREEN}     FINAL FIXED VERSION${NC}"
 echo -e "${CYAN}=========================================${NC}"
 echo ""
-
-# =========================
-# SHOW DETECTED REGION
-# =========================
-echo -e "${GREEN}✅ Detected Region:${NC} $REGION"
+echo -e "${GREEN}✅ Using Region:${NC} $REGION"
 echo ""
 
 # =========================
@@ -155,7 +164,7 @@ mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR" || exit 1
 
 # =========================
-# XRAY CONFIG - UPDATED
+# XRAY CONFIG
 # =========================
 cat > config.json <<'EOF'
 {
@@ -386,12 +395,12 @@ echo -e "${GREEN}         DEPLOYING CLOUD RUN${NC}"
 echo -e "${CYAN}=========================================${NC}"
 gcloud run deploy $CLOUD_RUN_SERVICE_NAME \
   --image gcr.io/$PROJECT_ID/$CLOUD_RUN_SERVICE_NAME \
-  --platform managed --region $REGION --allow-unauthenticated \
+  --platform managed --region "$REGION" --allow-unauthenticated \
   --port 8080 --memory $MEMORY --cpu $CPU --concurrency $CONCURRENCY \
   --timeout $TIMEOUT --min-instances $MIN_INST --max-instances $MAX_INST \
   --execution-environment gen2 --cpu-boost $BILLING_FLAGS --quiet
 
-CLOUD_RUN_URL=$(gcloud run services describe $CLOUD_RUN_SERVICE_NAME --region=$REGION --format='value(status.url)')
+CLOUD_RUN_URL=$(gcloud run services describe $CLOUD_RUN_SERVICE_NAME --region="$REGION" --format='value(status.url)')
 
 # =========================
 # FINAL OUTPUT
