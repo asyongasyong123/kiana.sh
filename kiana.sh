@@ -24,9 +24,9 @@ REGION="us-central1"
 
 RAND=$(openssl rand -hex 3)
 
-CLOUD_RUN_SERVICE_NAME="jonathan-$RAND"
+CLOUD_RUN_SERVICE_NAME="kiana-$RAND"
 
-DOMAIN="genuine-cobbler-847cc1.netlify.app"
+DOMAIN="www.google.com"
 
 BUILD_DIR=$(mktemp -d)
 
