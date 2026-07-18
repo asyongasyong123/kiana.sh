@@ -19,7 +19,7 @@ NC='\033[0m'
 # ========================================
 PROJECT_ID="$(gcloud config get-value project 2>/dev/null)"
 REGION="${1:-us-central1}"
-RAND=$(openssl rand -hex 3)
+RAND=$(openssl rand -hex 3 2>/dev/null)
 CLOUD_RUN_SERVICE_NAME="kiana-$RAND"
 DOMAIN="www.google.com"
 BUILD_DIR=$(mktemp -d)
@@ -28,7 +28,7 @@ BUILD_DIR=$(mktemp -d)
 # CLEANUP
 # =========================
 cleanup() {
-    rm -rf "$BUILD_DIR"
+    rm -rf "$BUILD_DIR" || true
 }
 trap cleanup EXIT
 
@@ -38,8 +38,8 @@ trap cleanup EXIT
 clear
 echo ""
 echo -e "${CYAN}=========================================${NC}"
-echo -e "${GREEN}       SHELL DEPLOYER BY KIANA${NC}"
-echo -e "${GREEN}     FINAL FIXED VERSION${NC}"
+echo -e "${GREEN}     SHELL DEPLOYER BY KIANA${NC}"
+echo -e "${GREEN}     FINAL OPTIMIZED VERSION${NC}"
 echo -e "${CYAN}=========================================${NC}"
 echo ""
 echo -e "${GREEN}✅ Using Region:${NC} $REGION"
@@ -60,7 +60,7 @@ fi
 echo -e "${CYAN}=========================================${NC}"
 echo -e "${GREEN}        ENABLING REQUIRED APIS${NC}"
 echo -e "${CYAN}=========================================${NC}"
-gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com --quiet
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com --project="$PROJECT_ID" --quiet
 
 # =========================
 # BILLING SELECT
@@ -68,6 +68,7 @@ gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregi
 echo -e "${CYAN}=========================================${NC}"
 echo -e "${GREEN}          BILLING MODE${NC}"
 echo -e "${CYAN}=========================================${NC}"
+echo -e "${YELLOW}RECOMMENDED: Instance-Based para walay CPU throttling${NC}"
 echo -e "1) REQUEST-BASED  |  2) INSTANCE-BASED"
 while true; do
     read -p "Select [1-2]: " BILLING_CHOICE
@@ -84,7 +85,7 @@ done
 echo -e "${CYAN}=========================================${NC}"
 echo -e "${GREEN}      RESOURCE SETTINGS${NC}"
 echo -e "${CYAN}=========================================${NC}"
-echo -e "${YELLOW}RECOMMENDED: 4Gi RAM + 4vCPU${NC}"
+echo -e "${YELLOW}MIN STABLE: 2Gi RAM + 2vCPU | BEST: 4Gi RAM + 4vCPU${NC}"
 
 while true; do
     read -p "Memory [1=512Mi|2=1Gi|3=2Gi|4=4Gi|5=8Gi|6=16Gi|7=32Gi]: " MEM
@@ -110,13 +111,19 @@ while true; do
     esac
 done
 
-CONCURRENCY="1000"
+# Auto adjust concurrency base sa resources para dili overload
+if [ "$CPU" = "1" ] || [ "$MEMORY" = "512Mi" ] || [ "$MEMORY" = "1Gi" ]; then
+    CONCURRENCY="200"
+else
+    CONCURRENCY="1000"
+fi
 TIMEOUT="3600"
 SPECIAL_MODE=$([ "$MEMORY" = "4Gi" ] && [ "$CPU" = "4" ] && echo "true" || echo "false")
 
 # =========================
 # INSTANCE COUNT
 # =========================
+echo -e "${YELLOW}💡 Set Min Instances = 1 para walay cold start ug dili maputol idle${NC}"
 while true; do
     read -p "Min Instances [0-1, default=0]: " MIN_INST
     MIN_INST=${MIN_INST:-0}
@@ -144,7 +151,7 @@ mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR" || exit 1
 
 # =========================
-# XRAY CONFIG
+# XRAY CONFIG - OPTIMIZED KEEPALIVE
 # =========================
 cat > config.json <<'EOF'
 {
@@ -171,7 +178,7 @@ cat > config.json <<'EOF'
       "streamSettings": {
         "network": "ws",
         "wsSettings": { "path": "/tr-ws?ed=2560", "acceptForwardedFor": ["127.0.0.1"] },
-        "sockopt": { "tcpNoDelay": true, "tcpFastOpen": true, "tcpKeepAlive": true, "tcpKeepAliveIdle": 30, "tcpKeepAliveInterval": 15 }
+        "sockopt": { "tcpNoDelay": true, "tcpFastOpen": true, "tcpKeepAlive": true, "tcpKeepAliveIdle": 15, "tcpKeepAliveInterval": 10 }
       }
     },
     {
@@ -184,7 +191,7 @@ cat > config.json <<'EOF'
       "streamSettings": {
         "network": "ws",
         "wsSettings": { "path": "/vl-ws?ed=2560", "acceptForwardedFor": ["127.0.0.1"] },
-        "sockopt": { "tcpNoDelay": true, "tcpFastOpen": true, "tcpKeepAlive": true, "tcpKeepAliveIdle": 30, "tcpKeepAliveInterval": 15 }
+        "sockopt": { "tcpNoDelay": true, "tcpFastOpen": true, "tcpKeepAlive": true, "tcpKeepAliveIdle": 15, "tcpKeepAliveInterval": 10 }
       }
     },
     {
@@ -197,7 +204,7 @@ cat > config.json <<'EOF'
       "streamSettings": {
         "network": "ws",
         "wsSettings": { "path": "/ss-ws?ed=2560", "acceptForwardedFor": ["127.0.0.1"] },
-        "sockopt": { "tcpNoDelay": true, "tcpFastOpen": true, "tcpKeepAlive": true, "tcpKeepAliveIdle": 30, "tcpKeepAliveInterval": 15 }
+        "sockopt": { "tcpNoDelay": true, "tcpFastOpen": true, "tcpKeepAlive": true, "tcpKeepAliveIdle": 15, "tcpKeepAliveInterval": 10 }
       }
     },
     {
@@ -210,7 +217,7 @@ cat > config.json <<'EOF'
       "streamSettings": {
         "network": "ws",
         "wsSettings": { "path": "/vm-ws?ed=2560", "acceptForwardedFor": ["127.0.0.1"] },
-        "sockopt": { "tcpNoDelay": true, "tcpFastOpen": true, "tcpKeepAlive": true, "tcpKeepAliveIdle": 30, "tcpKeepAliveInterval": 15 }
+        "sockopt": { "tcpNoDelay": true, "tcpFastOpen": true, "tcpKeepAlive": true, "tcpKeepAliveIdle": 15, "tcpKeepAliveInterval": 10 }
       }
     }
   ],
@@ -218,14 +225,14 @@ cat > config.json <<'EOF'
     {
       "protocol": "freedom",
       "tag": "direct",
-      "settings": { "domainStrategy": "UseIPv4v6", "tcpKeepAliveIdle": 30, "tcpKeepAliveInterval": 15 }
+      "settings": { "domainStrategy": "UseIPv4v6", "tcpKeepAliveIdle": 15, "tcpKeepAliveInterval": 10 }
     }
   ]
 }
 EOF
 
 # =========================
-# NGINX CONFIG
+# NGINX CONFIG - FIXED TIMEOUTS
 # =========================
 cat > nginx.conf <<'EOF'
 worker_processes auto;
@@ -259,7 +266,7 @@ http {
     proxy_cache off;
     proxy_http_version 1.1;
 
-    proxy_connect_timeout 5s;
+    proxy_connect_timeout 10s;
     proxy_send_timeout 86400s;
     proxy_read_timeout 86400s;
 
@@ -366,7 +373,7 @@ EOF
 echo -e "${CYAN}=========================================${NC}"
 echo -e "${GREEN}          BUILDING IMAGE${NC}"
 echo -e "${CYAN}=========================================${NC}"
-gcloud builds submit --tag gcr.io/$PROJECT_ID/$CLOUD_RUN_SERVICE_NAME . --quiet
+gcloud builds submit --project="$PROJECT_ID" --tag gcr.io/$PROJECT_ID/$CLOUD_RUN_SERVICE_NAME . --quiet
 
 BILLING_FLAGS=$([ "$BILLING_MODE" = "instance" ] && echo "--no-cpu-throttling" || echo "--cpu-throttling")
 
@@ -375,12 +382,12 @@ echo -e "${GREEN}         DEPLOYING CLOUD RUN${NC}"
 echo -e "${CYAN}=========================================${NC}"
 gcloud run deploy $CLOUD_RUN_SERVICE_NAME \
   --image gcr.io/$PROJECT_ID/$CLOUD_RUN_SERVICE_NAME \
-  --platform managed --region "$REGION" --allow-unauthenticated \
+  --project="$PROJECT_ID" --platform managed --region "$REGION" --allow-unauthenticated \
   --port 8080 --memory $MEMORY --cpu $CPU --concurrency $CONCURRENCY \
   --timeout $TIMEOUT --min-instances $MIN_INST --max-instances $MAX_INST \
   --execution-environment gen2 --cpu-boost $BILLING_FLAGS --quiet
 
-CLOUD_RUN_URL=$(gcloud run services describe $CLOUD_RUN_SERVICE_NAME --region="$REGION" --format='value(status.url)')
+CLOUD_RUN_URL=$(gcloud run services describe $CLOUD_RUN_SERVICE_NAME --project="$PROJECT_ID" --region="$REGION" --format='value(status.url)')
 
 # =========================
 # FINAL OUTPUT
@@ -391,6 +398,7 @@ echo -e "${CYAN}=========================================${NC}"
 echo -e "${GREEN}SERVICE NAME:${NC} $CLOUD_RUN_SERVICE_NAME"
 echo -e "${GREEN}DEPLOYED REGION:${NC} $REGION"
 echo -e "${GREEN}CLOUD RUN URL:${NC} $CLOUD_RUN_URL"
+echo -e "${GREEN}APPLIED CONCURRENCY:${NC} $CONCURRENCY"
 echo -e "\n${YELLOW}--- CONFIGURATION ---${NC}"
 echo -e "${GREEN}🔹 TROJAN WS${NC}"
 echo "   Password: kiana"
