@@ -23,10 +23,10 @@ RAND=$(openssl rand -hex 3)
 CLOUD_RUN_SERVICE_NAME="kiana-$RAND"
 DOMAIN="www.google.com"
 BUILD_DIR=$(mktemp -d)
+
 # ========================================
 # CLEANUP
 # =========================
-
 cleanup() {
     rm -rf "$BUILD_DIR"
 }
