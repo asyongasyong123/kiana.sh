@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # =========================================
-# SHELL DEPLOYER BY KIANA - FINAL FIXED VERSION
+# KIANA FULLY OPTIMIZED CLOUDSHELL DEPLOYER
 # =========================================
 
 # =========================
