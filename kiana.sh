@@ -15,38 +15,25 @@ CYAN='\033[1;36m'
 NC='\033[0m'
 
 # =========================
-# VARIABLES - FIXED SMART REGION DETECT
+# VARIABLES
 # =========================
-PROJECT_ID="$(gcloud config get-value project 2>/dev/null)"
 
-# 🧠 FIXED: Siguradong dili empty ang region
-REGION="${1:-$(
-  DEF_REG=$(gcloud config get-value compute/region 2>/dev/null || true)
-  if [ -n "$DEF_REG" ] && [ "$DEF_REG" != "(unset)" ]; then
-    echo "$DEF_REG"
-    return 0
-  fi
+PROJECT_ID="$(gcloud config get-value project)"
 
-  EXIST_REG=$(gcloud run services list --format='value(region)' --limit 1 2>/dev/null || true)
-  if [ -n "$EXIST_REG" ]; then
-    echo "$EXIST_REG"
-    return 0
-  fi
-
-  echo "us-central1"
-)}"
-
-# ✅ Safety backup aron dili gyud mag-empty
-[ -z "$REGION" ] && REGION="us-central1"
+REGION="us-central1"
 
 RAND=$(openssl rand -hex 3)
-CLOUD_RUN_SERVICE_NAME="kiana-$RAND"
-DOMAIN="www.google.com"
+
+CLOUD_RUN_SERVICE_NAME="jonathan-$RAND"
+
+DOMAIN="genuine-cobbler-847cc1.netlify.app"
+
 BUILD_DIR=$(mktemp -d)
 
 # =========================
 # CLEANUP
 # =========================
+
 cleanup() {
     rm -rf "$BUILD_DIR"
 }
