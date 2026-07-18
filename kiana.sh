@@ -14,23 +14,16 @@ YELLOW='\033[1;33m'
 CYAN='\033[1;36m'
 NC='\033[0m'
 
-# =========================
+# ========================================
 # VARIABLES
-# =========================
-
-PROJECT_ID="$(gcloud config get-value project)"
-
-REGION="asia-east1"
-
+# ========================================
+PROJECT_ID="$(gcloud config get-value project 2>/dev/null)"
+REGION="${1:-us-central1}"
 RAND=$(openssl rand -hex 3)
-
 CLOUD_RUN_SERVICE_NAME="kiana-$RAND"
-
 DOMAIN="www.google.com"
-
 BUILD_DIR=$(mktemp -d)
-
-# =========================
+# ========================================
 # CLEANUP
 # =========================
 
